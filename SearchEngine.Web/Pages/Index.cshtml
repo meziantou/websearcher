@@ -1,0 +1,156 @@
+﻿@page
+@using Microsoft.AspNetCore.Html
+@using Nest
+
+<h1>My Search Engine</h1>
+<form method="get">
+    <div class="searchbox">
+        <input type="search" name="search" placeholder="query..." value="@Search" style="" />
+        <button type="submit">🔍</button>
+    </div>
+</form>
+
+<ol class="results">
+    @foreach (var match in matches)
+    {
+        <li class="result">
+            <h2 class="result_title"><a href="@match.Url" target="_blank">@match.Title</a></h2>
+            <div class="result_attribution">
+                <cite>@match.Url</cite>
+            </div>
+            <p>@match.Highlight</p>
+        </li>
+    }
+</ol>
+
+<style>
+    h1, h2, h3, h4, h5, h6, p, ol, ul, li {
+        border: 0;
+        border-collapse: collapse;
+        border-spacing: 0;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .searchbox {
+        width: 545px;
+        border: gray 1px solid;
+        border-radius: 24px;
+    }
+
+        .searchbox button {
+            margin: 0;
+            transform: none;
+            background-image: none;
+            background-color: transparent;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+        }
+
+    input {
+        width: 499px;
+        font-size: 16px;
+        margin: 1px 0 1px 1px;
+        padding: 0 10px 0 19px;
+        border: 0;
+        max-height: none;
+        outline: none;
+        box-sizing: border-box;
+        height: 44px;
+        vertical-align: top;
+        border-radius: 6px;
+        background-color: transparent;
+    }
+
+    .results {
+        color: #666;
+    }
+
+    .result {
+        padding: 12px 20px 0;
+    }
+
+    .result_title > a {
+        font-size: 20px;
+        line-height: 24px;
+        font: 'Roboto',Sans-Serif;
+    }
+
+    .result_attribution {
+        padding: 1px 0 0 0;
+    }
+
+        .result_attribution > cite {
+            color: #006621;
+        }
+</style>
+
+@functions {
+    private List<MatchResult> matches = new();
+
+    [FromQuery(Name = "search")]
+    public string? Search { get; set; }
+
+    public async Task OnGet()
+    {
+        if (Search == null)
+            return;
+
+        // TODO add site:value
+        var settings = new ConnectionSettings(new Uri("http://localhost:9200")).DefaultIndex("webpages");
+        var client = new ElasticClient(settings);
+        var result = await client.SearchAsync<IndexedPage>(s => s
+                .Query(q => q
+                    .Bool(b =>
+                        b.Should(
+                            bs => bs.Match(m => m.Field(f => f.Contents).Query(Search)),
+                            bs => bs.Match(m => m.Field(f => f.Headers).Query(Search)),
+                            bs => bs.Match(m => m.Field(f => f.Title).Query(Search)),
+                            bs => bs.Match(m => m.Field(f => f.Description).Query(Search))
+                        )
+                     )
+                )
+                .Highlight(h => h.Fields(f => f.Field(f => f.Contents).PreTags("<strong>").PostTags("</strong>")))
+            );
+
+        foreach (var hit in result.Hits.OrderByDescending(hit => hit.Score).DistinctBy(hit => hit.Source.Url))
+        {
+            var highlight = "";
+            foreach (var field in hit.Highlight)
+            {
+                foreach (var value in field.Value)
+                {
+                    if (highlight != "")
+                    {
+                        highlight += " ... ";
+                    }
+
+                    highlight += value;
+                }
+            }
+
+            matches.Add(new(hit.Source.Title!, hit.Source.Url!, new HtmlString(highlight)));
+        }
+    }
+
+    record MatchResult(string Title, string Url, HtmlString Highlight);
+
+    [ElasticsearchType(IdProperty = nameof(Url))]
+    public class IndexedPage
+    {
+        [Keyword]
+        public string? Url { get; set; }
+        [Text]
+        public IEnumerable<string>? Contents { get; set; }
+        [Text]
+        public IEnumerable<string>? Headers { get; set; }
+        [Text]
+        public string? Title { get; set; }
+        [Text]
+        public string? Description { get; set; }
+    }
+}

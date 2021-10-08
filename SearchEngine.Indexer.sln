@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31717.71
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SearchEngine.Indexer", "SearchEngine.Indexer\SearchEngine.Indexer.csproj", "{44B339F8-95E1-4735-998C-768FEB67E4CF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SearchEngine.Web", "SearchEngine.Web\SearchEngine.Web.csproj", "{AA6CDD0E-FEA3-4427-95F9-1D21142AB050}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{44B339F8-95E1-4735-998C-768FEB67E4CF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{44B339F8-95E1-4735-998C-768FEB67E4CF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{44B339F8-95E1-4735-998C-768FEB67E4CF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{44B339F8-95E1-4735-998C-768FEB67E4CF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AA6CDD0E-FEA3-4427-95F9-1D21142AB050}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AA6CDD0E-FEA3-4427-95F9-1D21142AB050}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AA6CDD0E-FEA3-4427-95F9-1D21142AB050}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AA6CDD0E-FEA3-4427-95F9-1D21142AB050}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {C815F8FF-40AB-4364-BD88-F3F5713CC887}
+	EndGlobalSection
+EndGlobal
