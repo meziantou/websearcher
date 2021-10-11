@@ -96,38 +96,42 @@ public class Crawler
             while (TryGetUrl(out var url))
             {
                 // If we reach the maximum number of concurrent tasks, wait for one to finish
-                while (remainingConcurrency < 0)
+                while (Volatile.Read(ref remainingConcurrency) < 0)
                 {
-                    Task[]? clone;
+                    // The tasks collection can change while Task.WhenAny enumerates the collection
+                    // so, we need to clone the collection to avoid issues
+                    Task[]? clone = null;
                     lock (tasks)
                     {
-                        clone = tasks.ToArray();
+                        if (tasks.Count > 0)
+                        {
+                            clone = tasks.ToArray();
+                        }
                     }
 
-                    if (tasks.Count > 0)
+                    if (clone != null)
                     {
                         await Task.WhenAny(clone);
                     }
                 }
 
+                var task = Task.Run(async () =>
+                {
+                    try
+                    {
+                        _logger.LogTrace("Processing {URL}", url);
+                        await ProcessUrlAsync(new AnalyzeContext(url, browserContext, cancellationToken));
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error while processing {URL}", url);
+                    }
+                }, cancellationToken);
+
                 lock (tasks)
                 {
-                    var task = Task.Run(async () =>
-                    {
-                        try
-                        {
-                            _logger.LogTrace("Processing {URL}", url);
-                            await ProcessUrlAsync(new AnalyzeContext(url, browserContext, cancellationToken));
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(ex, "Error while processing {URL}", url);
-                        }
-                    }, cancellationToken);
-
                     tasks.Add(task);
-
-                    task.ContinueWith(_ => OnTaskCompleted(task), cancellationToken);
+                    task.ContinueWith(task => OnTaskCompleted(task), cancellationToken);
                 }
             }
 
@@ -135,15 +139,15 @@ public class Crawler
             {
                 lock (tasks)
                 {
-                    if (!_pendingUrls.Reader.TryRead(out var url))
+                    if (_pendingUrls.Reader.TryRead(out var url))
                     {
-                        result = null;
-                        return false;
+                        remainingConcurrency--;
+                        result = url;
+                        return true;
                     }
 
-                    remainingConcurrency--;
-                    result = url;
-                    return true;
+                    result = null;
+                    return false;
                 }
             }
 
@@ -151,14 +155,13 @@ public class Crawler
             {
                 lock (tasks)
                 {
-                    Debug.Assert(completedTask.IsCompleted);
                     if (!tasks.Remove(completedTask))
                         throw new CrawlerException("An unexpected error occured");
 
                     remainingConcurrency++;
 
                     // There is no active tasks, so we are sure we are at the end
-                    if (maxConcurrency == remainingConcurrency)
+                    if (maxConcurrency == remainingConcurrency && !_pendingUrls.Reader.TryPeek(out _))
                     {
                         _pendingUrls.Writer.Complete();
                     }
